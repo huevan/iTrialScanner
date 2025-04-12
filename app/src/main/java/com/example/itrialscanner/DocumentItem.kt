@@ -5,3 +5,10 @@ data class DocumentItem(
     val name: String,
     var isSelected: Boolean = false
 )
+
+data class PdfItem(
+    val path: String,
+    val name: String,
+    val uri: String? = null,
+    var isSelected: Boolean = false
+)

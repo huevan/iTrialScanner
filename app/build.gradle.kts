@@ -61,8 +61,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.appcompat.v151)
+    implementation(libs.androidx.constraintlayout.v221)
     implementation(libs.material)
 
     // CameraX
@@ -70,8 +70,6 @@ dependencies {
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)
 
-    // OpenCV (文档边缘检测)
-//    implementation(libs.opencv.android)
 
     // iText (PDF生成)
     implementation(libs.itextg)
@@ -85,5 +83,9 @@ dependencies {
     implementation(libs.cardview)
 
     implementation(project(":opencv"))
+
+    // ViewPager2 依赖
+    implementation(libs.androidx.viewpager2)
+
 
 }

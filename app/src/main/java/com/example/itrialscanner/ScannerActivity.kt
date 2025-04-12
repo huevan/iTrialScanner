@@ -1,17 +1,24 @@
 package com.example.itrialscanner
 
+import android.app.ProgressDialog
+import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.PointF
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.util.DisplayMetrics
+import android.util.Log
 import android.util.Size
 import android.widget.Button
 import android.widget.Toast
 import androidx.annotation.NonNull
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
@@ -21,7 +28,11 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
 import org.opencv.core.Mat
@@ -29,13 +40,12 @@ import org.opencv.core.MatOfPoint
 import org.opencv.core.MatOfPoint2f
 import org.opencv.imgproc.Imgproc
 import java.io.File
+import java.io.FileInputStream
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import android.util.Log
-import androidx.camera.core.AspectRatio
 
 class ScannerActivity : AppCompatActivity() {
 
@@ -53,6 +63,9 @@ class ScannerActivity : AppCompatActivity() {
     private lateinit var imageCapture: ImageCapture
     private val documentCorners = Array(4) { PointF() }
 
+    // 进度对话框，用于显示处理状态
+    private var progressDialog: ProgressDialog? = null
+
     private fun convertToViewCoordinates(point: PointF, imageWidth: Int, imageHeight: Int): PointF {
         val previewWidth = previewView.width.toFloat()
         val previewHeight = previewView.height.toFloat()
@@ -63,7 +76,6 @@ class ScannerActivity : AppCompatActivity() {
 
         return PointF(point.x * scaleX, point.y * scaleY)
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,14 +129,12 @@ class ScannerActivity : AppCompatActivity() {
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                     .build()
 
-
                 val imageAnalysis = ImageAnalysis.Builder()
                     .setTargetAspectRatio(AspectRatio.RATIO_4_3) // 更通用的设置
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
 
                 imageAnalysis.setAnalyzer(cameraExecutor, DocumentEdgeAnalyzer())
-//                imageAnalysis.setAnalyzer(cameraExecutor, SimpleDocumentAnalyzer())
 
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
                 // 先解绑所有用例
@@ -138,7 +148,6 @@ class ScannerActivity : AppCompatActivity() {
                     imageCapture,
                     imageAnalysis
                 )
-                // 添加日志确认相机已启动
                 Log.d("ScannerActivity", "相机已启动")
 
             } catch (e: ExecutionException) {
@@ -320,18 +329,6 @@ class ScannerActivity : AppCompatActivity() {
             }
         }
 
-        // 坐标转换方法
-        private fun convertToViewCoordinates(point: PointF, imageWidth: Int, imageHeight: Int): PointF {
-            val previewWidth = previewView.width.toFloat()
-            val previewHeight = previewView.height.toFloat()
-
-            // 根据预览视图的缩放模式进行调整
-            val scaleX = previewWidth / imageWidth
-            val scaleY = previewHeight / imageHeight
-
-            return PointF(point.x * scaleX, point.y * scaleY)
-        }
-
         // 修改findLargestContour方法，放宽条件
         private fun findLargestContour(contours: List<MatOfPoint>): MatOfPoint? {
             var maxArea = 0.0
@@ -367,48 +364,51 @@ class ScannerActivity : AppCompatActivity() {
         }
     }
 
-
-    private inner class SimpleDocumentAnalyzer : ImageAnalysis.Analyzer {
-        private var frameCounter = 0
-
-        override fun analyze(image: ImageProxy) {
-            frameCounter++
-            if (frameCounter % 30 == 0) { // 每30帧更新一次
-                val width = image.width.toFloat()
-                val height = image.height.toFloat()
-
-                // 创建一个简单的矩形，模拟文档边缘
-                val simpleCorners = Array(4) { PointF() }
-                simpleCorners[0] = PointF(width * 0.2f, height * 0.2f) // 左上
-                simpleCorners[1] = PointF(width * 0.8f, height * 0.2f) // 右上
-                simpleCorners[2] = PointF(width * 0.8f, height * 0.8f) // 右下
-                simpleCorners[3] = PointF(width * 0.2f, height * 0.8f) // 左下
-
-                Log.d("SimpleAnalyzer", "创建简单边框: 帧=$frameCounter, 尺寸=${width}x${height}")
-                val convertedCorners = Array(4) { PointF() }
-                for (i in 0 until 4) {
-                    convertedCorners[i] = convertToViewCoordinates(simpleCorners[i], image.width, image.height)
-                }
-
-
-                runOnUiThread {
-                    for (i in 0 until 4) {
-                        documentCorners[i].set(simpleCorners[i].x, simpleCorners[i].y)
-                    }
-                    documentFrame.setCorners(documentCorners)
-                    Log.d("SimpleAnalyzer", "边框已更新到UI")
+    // 将图片保存到公共相册
+    private suspend fun saveImageToGallery(sourceFilePath: String): Uri? = withContext(Dispatchers.IO) {
+        try {
+            val sourceFile = File(sourceFilePath)
+            val fileName = sourceFile.name
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Scanner")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
             }
-            image.close()
+
+            val contentResolver = contentResolver
+            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                ?: return@withContext null
+
+            contentResolver.openOutputStream(uri)?.use { outputStream ->
+                val inputStream = FileInputStream(sourceFile)
+                inputStream.copyTo(outputStream)
+                inputStream.close()
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                contentResolver.update(uri, contentValues, null, null)
+            }
+
+            return@withContext uri
+        } catch (e: Exception) {
+            Log.e("ScannerActivity", "保存图片到相册失败", e)
+            return@withContext null
         }
     }
-
 
     private fun captureImage() {
         if (!::imageCapture.isInitialized) {
             Toast.makeText(this, "相机未初始化", Toast.LENGTH_SHORT).show()
             return
         }
+
+        // 显示进度对话框
+        showProgressDialog("正在处理图像...")
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val fileName = "DOCUMENT_$timestamp.jpg"
@@ -420,30 +420,84 @@ class ScannerActivity : AppCompatActivity() {
 
         imageCapture.takePicture(outputOptions, ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved( outputFileResults: ImageCapture.OutputFileResults) {
-                    processAndEnhanceImage(outputFile.absolutePath)
+                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    // 在后台线程处理图像
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        try {
+                            // 1. 处理并增强图像 - 这是最耗时的部分
+                            val enhancedImagePath = ImageProcessor.processImage(outputFile.absolutePath, documentCorners)
+
+                            // 2. 如果处理成功，保存到公共相册
+                            var publicUri: Uri? = null
+                            if (enhancedImagePath != null) {
+                                publicUri = saveImageToGallery(enhancedImagePath)
+                                Log.d("ScannerActivity", "图像已保存到公共相册: $publicUri")
+                            }
+
+                            // 3. 返回主线程更新UI并结束活动
+                            withContext(Dispatchers.Main) {
+                                hideProgressDialog()
+
+                                if (enhancedImagePath != null) {
+                                    val resultIntent = Intent()
+                                    resultIntent.putExtra("documentPath", enhancedImagePath)
+                                    if (publicUri != null) {
+                                        resultIntent.putExtra("publicUri", publicUri.toString())
+                                    }
+                                    setResult(RESULT_OK, resultIntent)
+                                    finish()
+                                } else {
+                                    Toast.makeText(
+                                        this@ScannerActivity,
+                                        "图像处理失败",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ScannerActivity", "处理图像时出错", e)
+                            withContext(Dispatchers.Main) {
+                                hideProgressDialog()
+                                Toast.makeText(
+                                    this@ScannerActivity,
+                                    "处理图像时出错: ${e.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
                 }
 
-                override fun onError( exception: ImageCaptureException) {
-                    Toast.makeText(this@ScannerActivity, "拍照失败: ${exception.message}", Toast.LENGTH_SHORT).show()
+                override fun onError(exception: ImageCaptureException) {
+                    hideProgressDialog()
+                    Toast.makeText(
+                        this@ScannerActivity,
+                        "拍照失败: ${exception.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             })
     }
 
-    private fun processAndEnhanceImage(imagePath: String) {
-        val enhancedImagePath = ImageProcessor.processImage(imagePath, documentCorners)
-        if (enhancedImagePath != null) {
-            val resultIntent = Intent()
-            resultIntent.putExtra("documentPath", enhancedImagePath)
-            setResult(RESULT_OK, resultIntent)
-            finish()
-        } else {
-            Toast.makeText(this, "图像处理失败", Toast.LENGTH_SHORT).show()
+    // 显示进度对话框
+    private fun showProgressDialog(message: String) {
+        hideProgressDialog() // 确保没有已存在的对话框
+        progressDialog = ProgressDialog(this).apply {
+            setMessage(message)
+            setCancelable(false)
+            show()
         }
+    }
+
+    // 隐藏进度对话框
+    private fun hideProgressDialog() {
+        progressDialog?.dismiss()
+        progressDialog = null
     }
 
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+        hideProgressDialog()
     }
 }

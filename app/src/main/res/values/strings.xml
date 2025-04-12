@@ -1,3 +1,7 @@
 <resources>
-    <string name="app_name">iTrialScanner</string>
+    <string name="app_name">iTrial Scanner</string>
+    <string name="create_pdf">生成PDF</string>
+    <string name="share_file">分享文件</string>
+    <string name="tab_photos">照片</string>
+    <string name="tab_pdfs">PDF文件</string>
 </resources>
