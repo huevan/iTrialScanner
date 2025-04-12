@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "iTrialScanner"
 include(":app")
- 
+include(":opencv")
+project(":opencv").projectDir = File(rootDir, "sdk/")

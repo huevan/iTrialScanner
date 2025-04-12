@@ -2,7 +2,7 @@
 agp = "8.9.1"
 appcompat = "1.7.0"
 constraintlayout = "2.2.1"
-kotlin = "2.0.21"
+kotlin = "1.9.20"
 coreKtx = "1.15.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -12,7 +12,7 @@ activityCompose = "1.10.1"
 composeBom = "2024.09.00"
 material = "1.12.0"
 camerax = "1.2.0"
-opencv = "4.5.1"
+opencv = "4.11.0"
 itext = "5.5.10"
 glide = "4.13.2"
 recyclerview = "1.2.1"
@@ -40,7 +40,7 @@ material = { module = "com.google.android.material:material", version.ref = "mat
 camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
 camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
-opencv-android = { group = "com.github.quickbirdstudios", name = "opencv-android", version.ref = "opencv" }
+opencv-android = { group = "org.opencv", name = "opencv-android", version.ref = "opencv" }
 itextg = { group = "com.itextpdf", name = "itextg", version.ref = "itext" }
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
 glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
@@ -51,5 +51,4 @@ cardview = { group = "androidx.cardview", name = "cardview", version.ref = "card
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 

@@ -1,8 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
+//    alias(libs.plugins.kotlin.compose)
 }
+
 
 android {
     namespace = "com.example.itrialscanner"
@@ -17,6 +18,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.4"
+    }
 
     buildTypes {
         release {
@@ -28,11 +32,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
     buildFeatures {
         compose = true
@@ -67,7 +71,7 @@ dependencies {
     implementation(libs.camerax.view)
 
     // OpenCV (文档边缘检测)
-    implementation(libs.opencv.android)
+//    implementation(libs.opencv.android)
 
     // iText (PDF生成)
     implementation(libs.itextg)
@@ -79,5 +83,7 @@ dependencies {
     // RecyclerView
     implementation(libs.recyclerview)
     implementation(libs.cardview)
+
+    implementation(project(":opencv"))
 
 }
