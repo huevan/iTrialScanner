@@ -1,6 +1,7 @@
 package com.example.itrialscanner
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
@@ -9,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.*
@@ -56,6 +58,7 @@ class DocumentAdapter(
         private val imageView: ImageView = itemView.findViewById(R.id.documentImage)
         private val nameTextView: TextView = itemView.findViewById(R.id.documentName)
         private val checkBox: CheckBox = itemView.findViewById(R.id.documentCheckbox)
+        private val documentInfo: LinearLayout = itemView.findViewById(R.id.documentInfo)
 
         fun bind(item: DocumentItem) {
             nameTextView.text = item.name
@@ -64,13 +67,24 @@ class DocumentAdapter(
             // 加载缩略图
             loadThumbnail(item.path)
 
-            checkBox.setOnCheckedChangeListener { _, isChecked ->
-                item.isSelected = isChecked
+            // 设置点击图片打开查看器
+            imageView.setOnClickListener {
+                val intent = Intent(context, ImageViewerActivity::class.java)
+                intent.putExtra("imagePath", item.path)
+                context.startActivity(intent)
+            }
+
+            // 设置点击文件名才选中图片
+            documentInfo.setOnClickListener {
+                item.isSelected = !item.isSelected
+                checkBox.isChecked = item.isSelected
                 notifySelectionChanged()
             }
 
-            itemView.setOnClickListener {
-                checkBox.isChecked = !checkBox.isChecked
+            // 复选框点击事件
+            checkBox.setOnClickListener {
+                item.isSelected = checkBox.isChecked
+                notifySelectionChanged()
             }
         }
 

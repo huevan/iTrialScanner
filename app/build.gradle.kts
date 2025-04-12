@@ -86,6 +86,6 @@ dependencies {
 
     // ViewPager2 依赖
     implementation(libs.androidx.viewpager2)
-
+    implementation(libs.photoview.v230)
 
 }
