@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.PersistableBundle
 import android.provider.MediaStore
 import android.util.Log
 import android.view.Menu
@@ -21,14 +22,16 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import androidx.viewpager2.widget.ViewPager2
+import com.example.itrialscanner.test.CameraTestActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import org.opencv.android.OpenCVLoader
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import androidx.core.net.toUri
 
 
 class MainActivity : AppCompatActivity() {
@@ -39,6 +42,13 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var toolbar: Toolbar
     private lateinit var viewPager: ViewPager2
+    override fun onCreate(
+        savedInstanceState: Bundle?,
+        persistentState: PersistableBundle?
+    ) {
+        super.onCreate(savedInstanceState, persistentState)
+    }
+
     private lateinit var tabLayout: TabLayout
     private lateinit var btnCreatePdf: Button
     private lateinit var btnShare: Button
@@ -60,26 +70,55 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     // 使用 Activity Result API 替代 startActivityForResult
     private val scanDocumentLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            result.data?.getStringExtra("documentPath")?.let { _ ->
-                // 刷新照片列表
-                photosFragment.loadPhotos()
+        Log.d(TAG, "收到扫描结果: ${result.resultCode}")
 
-                // 切换到照片Tab
+        if (result.resultCode == RESULT_OK) {
+            val documentPath = result.data?.getStringExtra("documentPath")
+            Log.d(TAG, "收到文档路径: $documentPath")
+
+            if (documentPath != null && File(documentPath).exists()) {
+                // 确认文件存在后再刷新照片列表
+                Log.d(TAG, "文件存在，刷新照片列表并切换到照片Tab")
+                photosFragment.loadPhotos()
                 viewPager.currentItem = 0
+            } else {
+                Log.e(TAG, "未收到有效的文档路径或文件不存在: $documentPath")
+                showToast("未能获取拍摄的照片")
             }
+        } else {
+            Log.d(TAG, "扫描被取消或失败")
         }
     }
-
+    private val EAST_MODEL_PATH = "frozen_east_text_detection.pb"
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
+        initOpenCV()
         initViews()
         setupViewPager()
         setupListeners()
+
+        setupDebugOptions()
+
+//        try {
+//            val assetsList = assets.list("")
+//            Log.d(TAG, "Assets列表: ${assetsList?.joinToString()}")
+//            val modelExists = assetsList?.contains(EAST_MODEL_PATH) ?: false
+//            Log.d(TAG, "模型文件在assets中存在: $modelExists")
+//        } catch (e: Exception) {
+//            Log.e(TAG, "列出assets目录内容失败", e)
+//        }
+    }
+
+    private fun initOpenCV() {
+        if (!OpenCVLoader.initDebug()) {
+            Log.e("OpenCV", "OpenCV初始化失败")
+        } else {
+            Log.d("OpenCV", "OpenCV初始化成功")
+        }
     }
 
     private fun initViews() {
@@ -331,6 +370,16 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent.createChooser(shareIntent, "分享PDF"))
         } else {
             showToast("PDF文件不存在")
+        }
+    }
+
+    private fun setupDebugOptions() {
+        // 仅在DEBUG版本添加长按操作
+        btnTakePhoto.setOnLongClickListener {
+            // 启动相机测试工具
+            val intent = Intent(this, CameraTestActivity::class.java)
+            startActivity(intent)
+            true
         }
     }
 

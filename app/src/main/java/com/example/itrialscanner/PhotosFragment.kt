@@ -56,23 +56,37 @@ class PhotosFragment : Fragment() {
     fun loadPhotos() {
         documentItems.clear()
 
-        // 获取拍摄的照片
-        val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        // 获取应用私有目录（不指定子目录）
+        val storageDir = requireContext().getExternalFilesDir(null)
         if (storageDir != null && storageDir.exists()) {
-            val files = storageDir.listFiles { _, name ->
-                name.endsWith(".jpg") && !name.contains("_processed")
+            val files = storageDir.listFiles { file ->
+                file.isFile && file.name.endsWith(".jpg")
             }
 
             files?.forEach { file ->
-                // 查找对应的处理后文件
-                val processedFileName = file.name.replace(".jpg", "_processed.jpg")
-                val processedFile = File(storageDir, processedFileName)
+                // 优先使用处理后的文件，如果存在
+                if (!file.name.contains("processed_")) {
+                    // 对于原始文件，查找对应的处理后文件
+                    val processedFile = File(file.parentFile, "processed_${file.name}")
 
-                // 优先使用处理后的文件，如果存在的话
-                val displayPath = if (processedFile.exists()) processedFile.absolutePath else file.absolutePath
+                    // 使用处理后的文件（如果存在），否则使用原始文件
+                    val displayPath = if (processedFile.exists()) processedFile.absolutePath else file.absolutePath
 
-                documentItems.add(DocumentItem(displayPath, file.name))
+                    documentItems.add(DocumentItem(displayPath, file.name))
+                } else if (!file.name.startsWith("processed_")) {
+                    // 如果文件名包含"processed"但不是以"processed_"开头，则可能是独立文件
+                    documentItems.add(DocumentItem(file.absolutePath, file.name))
+                }
             }
+
+            // 按照修改时间倒序排序（最新的在前）
+            documentItems.sortByDescending { File(it.path).lastModified() }
+        }
+
+        // 调试日志
+        android.util.Log.d("PhotosFragment", "找到 ${documentItems.size} 张照片")
+        documentItems.forEach {
+            android.util.Log.d("PhotosFragment", "照片: ${it.path}")
         }
 
         adapter.notifyDataSetChanged()

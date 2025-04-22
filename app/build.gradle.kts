@@ -88,4 +88,25 @@ dependencies {
     implementation(libs.androidx.viewpager2)
     implementation(libs.photoview.v230)
 
+    // 添加TensorFlow Lite依赖
+    implementation("org.tensorflow:tensorflow-lite:2.8.0")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.8.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.0")
+
+
+//    // ML Kit对象检测
+//    implementation("com.google.mlkit:object-detection:17.0.0")
+    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
+//    // 可选：添加自定义模型支持
+//    implementation("com.google.mlkit:object-detection-custom:17.0.0")
+//    implementation("com.google.mlkit:vision-common:17.3.0")
+//    implementation("com.google.mlkit:text-recognition:16.0.0")
+
+    // 协程支持
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // 生命周期扩展
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
 }
